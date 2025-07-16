@@ -1,0 +1,134 @@
+:root {
+  --bg-dark: #121212;
+  --card-dark: #1e1e1e;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --success: #10b981;
+  --success-hover: #059669;
+  --warning: #f59e0b;
+  --text-light: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-dark: #2e2e2e;
+}
+
+body {
+  background: var(--bg-dark);
+  color: var(--text-light);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+}
+
+.tooltip {
+  position: relative;
+}
+
+.tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10;
+  margin-bottom: 5px;
+}
+
+.day-cell {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.day-cell:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  z-index: 10;
+}
+
+.day-cell.trading-sunday {
+  background: rgba(16, 185, 129, 0.1);
+  border-left: 3px solid var(--success);
+}
+
+.day-cell.non-trading-sunday {
+  background: rgba(239, 68, 68, 0.1);
+  border-left: 3px solid var(--danger);
+}
+
+/* Nowe style dla dni handlowych, niehandlowych i świąt */
+.day-cell.holiday {
+  background-color: rgba(255, 99, 71, 0.15); /* Lekko czerwony dla świąt */
+  border: 1px solid tomato;
+  color: tomato;
+}
+
+.day-cell.trading-day {
+  background-color: rgba(60, 179, 113, 0.15); /* Lekko zielony dla dni handlowych */
+  border: 1px solid mediumseagreen;
+  color: mediumseagreen;
+}
+
+.day-cell.non-trading-day {
+  background-color: rgba(255, 165, 0, 0.15); /* Lekko pomarańczowy dla dni niehandlowych */
+  border: 1px solid darkorange;
+  color: darkorange;
+}
+
+
+.day-cell.current-day {
+  box-shadow: 0 0 0 2px var(--primary);
+  border: 2px solid var(--primary);
+  transform: scale(1.02);
+}
+
+.event-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.modal-overlay {
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+  z-index: 1001;
+}
+
+.text-shadow {
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.highlight-secondary {
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid var(--primary);
+}
+
+/* Responsive calendar grid */
+@media (max-width: 768px) {
+  .calendar-grid {
+    gap: 2px !important;
+  }
+  .day-cell {
+    min-height: 60px !important;
+    padding: 4px !important;
+  }
+}
