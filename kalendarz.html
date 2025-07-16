@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Planer z godziną i osobą</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #222222;
+      --card: #1b1b1b;
+      --sunday: #424242;
+      --trading: #2f4f2f;
+      --notrading: #4f2f2f;
+      --text: #e0e0e0;
+      --muted: #9e9e9e;
+      --accent: #686868;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 20px;
+      text-align: center;
+      font-size: 28px;
+      background: #2a2a2a;
+      border-bottom: 1px solid #1e1e1e;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    }
+    .main-container {
+      display: flex;
+      flex: 1;
+    }
+    .calendar-wrapper {
+      padding: 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .events-panel {
+      width: 300px;
+      padding: 20px;
+      background: var(--card);
+      border-left: 1px solid #333;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .events-panel h3 {
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    #eventsList {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .calendar-header button {
+      background: var(--accent);
+      color: #000;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s, transform 0.2s;
+    }
+    .calendar-header button:hover {
+      background: #666;
+      transform: scale(1.05);
+    }
+    .calendar-header h2 {
+      font-size: 22px;
+      text-transform: capitalize;
+      user-select: none;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      flex: 1;
+    }
+    .day-name {
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      user-select: none;
+    }
+    .day-cell {
+      background: var(--card);
+      border-radius: 8px;
+      padding: 8px;
+      min-height: 80px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: all 0.3s ease;
+      border: 1px solid #333;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .day-cell:hover {
+      transform: translateY(-5px) scale(1.03);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+      z-index: 2;
+      background-image: linear-gradient(
+        to bottom right,
+        rgba(255, 255, 255, 0.15),
+        rgba(255, 255, 255, 0.1)
+      );
+      border: 2px solid #00a1ff;
+    }
+    .day-cell.current-day:hover {
+      box-shadow: 0 8px 20px rgba(0, 161, 255, 0.5);
+      transform: translateY(-5px) scale(1.03);
+    }
+    .day-cell.trading {
+      background: var(--trading);
+    }
+    .day-cell.notrading {
+      background: var(--notrading);
+    }
+    .day-cell.trading::after,
+    .day-cell.notrading::after {
+      content: attr(data-label);
+      font-size: 10px;
+      position: absolute;
+      bottom: 4px;
+      right: 6px;
+      background: rgba(255,255,255,0.1);
+      padding: 2px 5px;
+      border-radius: 6px;
+      user-select: none;
+    }
+    .date-number {
+      font-weight: bold;
+      font-size: 16px;
+      user-select: none;
+    }
+    .day-cell.current-day {
+      border: 2px solid #00a1ff;
+      box-shadow: 0 0 0 2px rgba(0, 161, 255, 0.3);
+    }
+    .day-cell.current-day .date-number {
+      color: #00a1ff;
+      font-weight: 800;
+    }
+    .event-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin: 2px 0;
+    }
+    .legend {
+      padding: 12px;
+      font-size: 14px;
+      user-select: none;
+    }
+    .legend span {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 8px;
+      margin-right: 10px;
+      font-weight: bold;
+    }
+
+    /* Popup modal */
+    #eventModal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .modal-content {
+      background: var(--card);
+      padding: 24px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 350px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      border: 1px solid #333;
+    }
+    .modal-content h3 {
+      text-align: center;
+      font-weight: 700;
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+    .time-picker-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin: 10px 0;
+    }
+    .time-picker-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .time-picker-group label {
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .time-input-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .time-input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      background: #2c2c2c;
+      border: 1px solid #333;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .quick-times {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .quick-times span {
+      background: #333;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .quick-times span:hover {
+      background: var(--accent);
+    }
+    .modal-content input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+      font-size: 15px;
+      transition: all 0.3s ease;
+    }
+    .modal-content input:focus {
+      outline: none;
+      box-shadow: 0 0 8px var(--accent);
+      border: 1px solid var(--accent);
+      background: #222;
+    }
+    .modal-content button {
+      background: var(--accent);
+      color: #000;
+      padding: 12px 0;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 16px;
+      transition: background 0.25s ease;
+    }
+    .modal-content button:hover {
+      background: #666;
+      color: #fff;
+    }
+    .event-item {
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      position: relative;
+    }
+    .event-time {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    .event-title {
+      font-weight: bold;
+      font-size: 16px;
+    }
+    .event-person {
+      font-size: 14px;
+      font-style: italic;
+    }
+    .event-actions {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      display: flex;
+      gap: 5px;
+    }
+    .event-actions button {
+      background: transparent;
+      border: none;
+      color: white;
+      padding: 3px;
+      cursor: pointer;
+      font-size: 14px;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    .event-actions button:hover {
+      opacity: 1;
+    }
+    .no-events {
+      text-align: center;
+      color: var(--muted);
+      padding: 20px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <header></header>
+  <div class="main-container">
+    <div class="calendar-wrapper">
+      <div class="calendar-header">
+        <button onclick="prevMonth()">←</button>
+        <h2 id="monthYear"></h2>
+        <button onclick="nextMonth()">→</button>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+      <div class="legend">
+        <span class="handlowa">🟩 Niedziela handlowa</span>
+        <span class="niehandlowa">🟥 Niedziela niehandlowa</span>
+      </div>
+    </div>
+    <div class="events-panel">
+      <h3>Twoje wydarzenia</h3>
+      <div id="eventsList"></div>
+    </div>
+  </div>
+  <div id="eventModal">
+    <div class="modal-content">
+      <h3>Dodaj wydarzenie</h3>
+      <input type="text" id="eventText" placeholder="Tytuł wydarzenia" autocomplete="off" />
+      <div class="time-picker-container">
+        <div class="time-picker-group">
+          <label>Rozpoczęcie:</label>
+          <div class="time-input-wrapper">
+            <input type="time" id="eventStart" class="time-input" step="1800" required />
+            <div class="quick-times">
+              <span onclick="setQuickTime('eventStart', '08:00')">8:00</span>
+              <span onclick="setQuickTime('eventStart', '09:00')">9:00</span>
+              <span onclick="setQuickTime('eventStart', '10:00')">10:00</span>
+            </div>
+          </div>
+        </div>
+        <div class="time-picker-group">
+          <label>Zakończenie:</label>
+          <div class="time-input-wrapper">
+            <input type="time" id="eventEnd" class="time-input" step="1800" required />
+            <div class="quick-times">
+              <span onclick="setQuickTime('eventEnd', '16:00')">16:00</span>
+              <span onclick="setQuickTime('eventEnd', '17:00')">17:00</span>
+              <span onclick="setQuickTime('eventEnd', '18:00')">18:00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <input type="text" id="eventPerson" placeholder="Osoba odpowiedzialna" autocomplete="off" />
+      <div style="display: flex; gap: 10px;">
+        <button onclick="addEvent()" style="flex: 1;">Dodaj</button>
+        <button onclick="closeModal()" style="flex: 1; background: #444;">Anuluj</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // DOM elements
+    const calendarGrid = document.getElementById("calendarGrid");
+    const monthYear = document.getElementById("monthYear");
+    const eventsList = document.getElementById("eventsList");
+
+    // Modal elements
+    const eventModal = document.getElementById("eventModal");
+    const eventText = document.getElementById("eventText");
+    const eventStart = document.getElementById("eventStart");
+    const eventEnd = document.getElementById("eventEnd");
+    const eventPerson = document.getElementById("eventPerson");
+
+    // Calendar state
+    let currentDate = new Date();
+    let selectedDate = null;
+    let events = {};
+    let editingEventId = null;
+
+    const tradingSundays = new Set([
+      '2025-1-26','2025-4-13','2025-4-27','2025-6-29',
+      '2025-8-31','2025-12-7','2025-12-14','2025-12-21'
+    ]);
+
+    const dayNames = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Ndz"];
+
+    // Initialize calendar
+    document.addEventListener('DOMContentLoaded', () => {
+      renderCalendar();
+      loadEvents();
+    });
+
+    // Calendar rendering
+    function renderCalendar() {
+      calendarGrid.innerHTML = '';
+
+      // Add day names
+      dayNames.forEach(name => {
+        const dayNameEl = document.createElement("div");
+        dayNameEl.className = "day-name";
+        dayNameEl.textContent = name;
+        calendarGrid.appendChild(dayNameEl);
+      });
+
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const firstDay = new Date(year, month, 1).getDay();
+      
+      // Adjust first day for Monday start (0=Sunday, 1=Monday, etc.)
+      const adjustedFirstDay = firstDay === 0 ? 6 : firstDay - 1;
+      
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const prevMonthDays = new Date(year, month, 0).getDate();
+      
+      monthYear.textContent = currentDate.toLocaleDateString("pl-PL", { 
+        month: "long", 
+        year: "numeric" 
+      });
+
+      // Previous month days
+      for (let i = 0; i < adjustedFirstDay; i++) {
+        const day = prevMonthDays - adjustedFirstDay + i + 1;
+        const dayEl = createDayElement(day, true);
+        calendarGrid.appendChild(dayEl);
+      }
+
+      // Current month days
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${month + 1}-${day}`;
+        const dayEl = createDayElement(day);
+        
+        // Highlight current day
+        const today = new Date();
+        if (year === today.getFullYear() && 
+            month === today.getMonth() && 
+            day === today.getDate()) {
+          dayEl.classList.add("current-day");
+        }
+
+        // Sunday styling
+        const dayOfWeek = new Date(year, month, day).getDay();
+        if (dayOfWeek === 0) {
+          if (tradingSundays.has(dateStr)) {
+            dayEl.classList.add("trading");
+            dayEl.setAttribute("data-label", "🛍 handlowa");
+          } else {
+            dayEl.classList.add("notrading");
+            dayEl.setAttribute("data-label", "🚫 niehandlowa");
+          }
+        }
+
+        // Add event dots
+        if (events[dateStr]) {
+          events[dateStr].forEach(event => {
+            const dot = document.createElement("div");
+            dot.className = "event-dot";
+            dot.style.backgroundColor = event.color;
+            dayEl.appendChild(dot);
+          });
+        }
+
+        dayEl.onclick = () => {
+          selectedDate = dateStr;
+          openModal();
+        };
+        
+        calendarGrid.appendChild(dayEl);
+      }
+
+      // Next month days to fill grid
+      const totalCells = 42; // 6 rows x 7 days
+      const daysAdded = adjustedFirstDay + daysInMonth;
+      if (daysAdded < totalCells) {
+        for (let i = 1; i <= totalCells - daysAdded; i++) {
+          const dayEl = createDayElement(i, true);
+          calendarGrid.appendChild(dayEl);
+        }
+      }
+    }
+
+    function createDayElement(day, isAdjacentMonth = false) {
+      const dayEl = document.createElement("div");
+      dayEl.className = "day-cell";
+      if (isAdjacentMonth) {
+        dayEl.style.opacity = "0.5";
+      }
+      
+      const dateNumber = document.createElement("div");
+      dateNumber.className = "date-number";
+      dateNumber.textContent = day;
+      dayEl.appendChild(dateNumber);
+      
+      return dayEl;
+    }
+
+    // Event handling
+    function openModal() {
+      eventModal.style.display = "flex";
+      eventText.focus();
+    }
+
+    function closeModal() {
+      eventModal.style.display = "none";
+      eventText.value = "";
+      eventStart.value = "";
+      eventEnd.value = "";
+      eventPerson.value = "";
+      editingEventId = null;
+    }
+
+    function setQuickTime(elementId, time) {
+      document.getElementById(elementId).value = time;
+    }
+
+    function generateEventId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    function addEvent() {
+      const title = eventText.value.trim();
+      const startTime = eventStart.value;
+      const endTime = eventEnd.value;
+      const person = eventPerson.value.trim();
+
+      if (!title || !startTime || !endTime || !person) {
+        alert("Proszę wypełnić wszystkie wymagane pola");
+        return;
+      }
+
+      if (startTime >= endTime) {
+        alert("Czas zakończenia musi być późniejszy niż czas rozpoczęcia");
+        return;
+      }
+
+      const dateStr = selectedDate;
+      const eventId = editingEventId || generateEventId();
+      const event = {
+        id: eventId,
+        title,
+        startTime,
+        endTime,
+        person,
+        date: dateStr,
+        color: `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`
+      };
+
+      if (!events[dateStr]) {
+        events[dateStr] = [];
+      }
+
+      if (editingEventId) {
+        // Replace existing event
+        const index = events[dateStr].findIndex(e => e.id === editingEventId);
+        if (index !== -1) {
+          events[dateStr][index] = event;
+        }
+      } else {
+        // Add new event
+        events[dateStr].push(event);
+      }
+
+      saveEvents();
+      renderCalendar();
+      renderEventsList();
+      closeModal();
+    }
+
+    function editEvent(eventId) {
+      for (const date in events) {
+        const eventIndex = events[date].findIndex(e => e.id === eventId);
+        if (eventIndex !== -1) {
+          const event = events[date][eventIndex];
+          selectedDate = date;
+          editingEventId = eventId;
+          
+          eventText.value = event.title;
+          eventStart.value = event.startTime;
+          eventEnd.value = event.endTime;
+          eventPerson.value = event.person;
+          
+          openModal();
+          return;
+        }
+      }
+    }
+
+    function deleteEvent(eventId) {
+      if (!confirm("Czy na pewno chcesz usunąć to wydarzenie?")) return;
+      
+      for (const date in events) {
+        events[date] = events[date].filter(e => e.id !== eventId);
+        if (events[date].length === 0) {
+          delete events[date];
+        }
+      }
+      
+      saveEvents();
+      renderCalendar();
+      renderEventsList();
+    }
+
+    // Events list rendering
+    function renderEventsList() {
+      eventsList.innerHTML = '';
+
+      if (Object.keys(events).length === 0) {
+        const noEvents = document.createElement("div");
+        noEvents.className = "no-events";
+        noEvents.textContent = "Brak wydarzeń";
+        eventsList.appendChild(noEvents);
+        return;
+      }
+
+      // Collect all events sorted by date
+      const sortedDates = Object.keys(events).sort();
+      
+      sortedDates.forEach(dateStr => {
+        // Sort events by time
+        events[dateStr].sort((a, b) => {
+          return a.startTime.localeCompare(b.startTime);
+        });
+
+        events[dateStr].forEach(event => {
+          const eventEl = document.createElement("div");
+          eventEl.className = "event-item";
+          eventEl.style.backgroundColor = event.color;
+
+          const date = new Date(event.date);
+          const formattedDate = date.toLocaleDateString("pl-PL", { 
+            day: 'numeric', 
+            month: 'long',
+            year: 'numeric'
+          });
+
+          const timeRange = `${event.startTime} - ${event.endTime}`;
+          
+          eventEl.innerHTML = `
+            <div class="event-title">${event.title}</div>
+            <div class="event-time">${formattedDate} • ${timeRange}</div>
+            <div class="event-person">${event.person}</div>
+            <div class="event-actions">
+              <button onclick="editEvent('${event.id}')">✏️</button>
+              <button onclick="deleteEvent('${event.id}')">🗑</button>
+            </div>
+          `;
+
+          eventsList.appendChild(eventEl);
+        });
+      });
+    }
+
+    // Local storage handling
+    function saveEvents() {
+      localStorage.setItem('calendarEvents', JSON.stringify(events));
+    }
+
+    function loadEvents() {
+      const savedEvents = localStorage.getItem('calendarEvents');
+      if (savedEvents) {
+        events = JSON.parse(savedEvents);
+        renderEventsList();
+      }
+    }
+
+    // Month navigation
+    function prevMonth() {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+      renderCalendar();
+    }
+
+    function nextMonth() {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      renderCalendar();
+    }
+  </script>
+</body>
+</html>
